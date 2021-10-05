@@ -1,7 +1,7 @@
 use std::error::Error;
 
 mod encode;
-use encode::fft;
+use encode::{fft, EncodeOptions};
 
 mod decode;
 
@@ -43,7 +43,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 			println!("usage: compress encode SRC DEST");
 			return Ok(());
 		}
-		encode::encode(args[2].as_str(), args[3].as_str())?;
+
+		let opts = EncodeOptions {
+			chunk_size: 1024,
+			out_size: 128,
+		};
+		encode::encode(args[2].as_str(), args[3].as_str(), opts)?;
 	} else if args[1] == "decode" {
 		if args.len() < 3 {
 			println!("usage: compress decode SRC");
@@ -53,9 +58,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 	} else {
 		println!("usage: compress encode SRC DEST\n       compress decode SRC")
 	}
-
-	// fft_test()
-	// encode::encode("audio/unity.wav", "audio/unity.xprs")
 
 	Ok(())
 }

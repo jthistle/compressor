@@ -10,6 +10,13 @@ pub mod fft;
 mod riff;
 use riff::RiffChunk;
 
+
+pub struct EncodeOptions {
+	pub chunk_size: usize,
+	pub out_size: usize,
+}
+
+
 /// Analyzes a chunk for frequency spectrum, discards useless frequencies, and appends `out_size` results to
 /// the `out` array.
 fn encode_chunk(chunk: &[isample], out: &mut Vec<Chunk>, out_size: usize, fs: f32) -> Result<(), Box<dyn Error>> {
@@ -65,7 +72,7 @@ fn write_chunks(chunks: &Vec<Chunk>, out_size: usize, chunk_size: usize, fs: f32
 	Ok(())
 }
 
-pub fn encode(filename: &str, destination: &str) -> Result<(), Box<dyn Error>> {
+pub fn encode(filename: &str, destination: &str, opts: EncodeOptions) -> Result<(), Box<dyn Error>> {
     let raw = fs::read(filename)?;
 
     let (fs, channels) =
@@ -93,8 +100,8 @@ pub fn encode(filename: &str, destination: &str) -> Result<(), Box<dyn Error>> {
     };
 
 	let mut out = Vec::new();
-	let chunk_size = 256 * 4;
-	let out_size = 64;
+	let chunk_size = opts.chunk_size;
+	let out_size = opts.out_size;
 	let num_chunks = channels[0].len() / chunk_size;
 
 	let part = num_chunks / 100;
