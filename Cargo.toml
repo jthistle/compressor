@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 num-complex = "0.2.0"
-fourier = { path = "fourier/fourier" }
+# fourier = { path = "fourier/fourier" }
 alsa = "0.5.0"
