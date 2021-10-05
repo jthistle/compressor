@@ -2,8 +2,6 @@ use super::{isample, Complex};
 
 use std::error::Error;
 
-extern crate fourier;
-
 pub fn compute_fft(input: &[isample], output: &mut [Complex<f32>]) -> Result<(), Box<dyn Error>>{
     let N: usize = input.len();
     let mut working_with = Vec::<Complex<f32>>::with_capacity(N);
@@ -38,22 +36,4 @@ pub fn compute_fft(input: &[isample], output: &mut [Complex<f32>]) -> Result<(),
     }
 
     Ok(())
-}
-
-
-pub fn compute_fft_2(input: &[isample], output: &mut [f32]) -> Result<(), Box<dyn Error>> {
-    let N: usize = input.len();
-    let mut working_with = Vec::<Complex<f32>>::with_capacity(N);
-    for x in input {
-        working_with.push(Complex::new(*x as f32, 0.0));
-    }
-
-	let fft = fourier::create_fft_f32(N);
-	fft.fft_in_place(&mut working_with[..]);
-
-    for i in 0..N {
-        output[i] = working_with[i].norm() as f32;
-    }
-
-	Ok(())
 }

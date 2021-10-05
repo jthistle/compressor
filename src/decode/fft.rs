@@ -2,8 +2,6 @@ use super::{isample, Complex};
 
 use std::error::Error;
 
-extern crate fourier;
-
 pub fn compute_inverse_fft(input: &[Complex<f32>], output: &mut [isample]) -> Result<(), Box<dyn Error>>{
     let N: usize = input.len();
     let mut working_with = input.to_owned();

@@ -48,8 +48,6 @@ fn generate_from_chunk(chunks: &[Chunk], out: &mut Vec<isample>, chunk_size: usi
 		transform[chunk.0 as usize] = chunk.1;
 	}
 
-	// println!("{:?}", transform);
-
 	out.append(&mut std::iter::repeat(0 as isample).take(chunk_size as usize).collect::<Vec<_>>());
 	let start_ind = out.len() - chunk_size;
 	fft::compute_inverse_fft(&transform, &mut out[start_ind..])?;

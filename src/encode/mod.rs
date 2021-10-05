@@ -53,16 +53,6 @@ fn write_chunks(chunks: &Vec<Chunk>, out_size: usize, chunk_size: usize, fs: f32
 	out_file.write(&(fs as i32).to_le_bytes())?;
 	out_file.write("DATA".as_bytes())?;
 
-	// Normalize
-	/*
-	let mut max = 0f32;
-	for i in (0..chunks.len()).step_by(chunk_size) {
-		if chunks[i].1.norm() > max  {
-			max = chunks[i].1;
-		}
-	}
-	*/
-
 	for chunk in chunks {
 		out_file.write(&(chunk.0 as u16).to_le_bytes())?;
 		out_file.write(&(chunk.1.re as f32).to_le_bytes())?;
@@ -111,16 +101,6 @@ pub fn encode(filename: &str, destination: &str, opts: EncodeOptions) -> Result<
 		}
 		encode_chunk(&channels[0][i * chunk_size..(i + 1) * chunk_size], &mut out, out_size, fs)?;
 	}
-
-	/*
-	for i in 0..num_chunks {
-		println!("\nChunk {}", i);
-		for j in 0..out_size {
-			let chunk = out[i * out_size + j];
-			println!("{}: {} mag, {} Hz", j, chunk.0, discrete_to_frequency(chunk.1, fs, chunk_size));
-		}
-	}
-	*/
 
 	write_chunks(&out, out_size, chunk_size, fs, destination)?;
 
