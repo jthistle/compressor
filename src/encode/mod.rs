@@ -1,4 +1,4 @@
-use super::{isample, discrete_to_frequency, frequency_to_discrete};
+use super::{isample, frequency_to_discrete, Complex, Chunk};
 
 use std::convert::TryInto;
 use std::fs;
@@ -12,18 +12,18 @@ use riff::RiffChunk;
 
 /// Analyzes a chunk for frequency spectrum, discards useless frequencies, and appends `out_size` results to
 /// the `out` array.
-fn encode_chunk(chunk: &[isample], out: &mut Vec<(u16, f32)>, out_size: usize, fs: f32) -> Result<(), Box<dyn Error>> {
+fn encode_chunk(chunk: &[isample], out: &mut Vec<Chunk>, out_size: usize, fs: f32) -> Result<(), Box<dyn Error>> {
 	let in_size = chunk.len();
 
-	let mut fft_output = std::iter::repeat(0f32).take(in_size).collect::<Vec<_>>();
+	let mut fft_output = std::iter::repeat(Complex::new(0.0, 0.0)).take(in_size).collect::<Vec<_>>();
 	fft::compute_fft(&chunk[..], &mut fft_output[..])?;
 
-	let mut out_tmp = std::iter::repeat((0u16, 0f32)).take(out_size).collect::<Vec<_>>();
+	let mut out_tmp = std::iter::repeat((0u16, Complex::new(0.0, 0.0))).take(out_size).collect::<Vec<_>>();
 	let limit = frequency_to_discrete(20000.0, fs, in_size) as usize;
 	for (ind, val) in fft_output.into_iter().take(limit).enumerate() {
-		if val < out_tmp[out_size - 1].1 { continue; }
+		if val.norm() < out_tmp[out_size - 1].1.norm() { continue; }
 		for i in 0..out_size {
-			if val > out_tmp[i].1 {
+			if val.norm() > out_tmp[i].1.norm() {
 				out_tmp.pop();
 				out_tmp.insert(i, (ind as u16, val));
 				break;
@@ -36,7 +36,7 @@ fn encode_chunk(chunk: &[isample], out: &mut Vec<(u16, f32)>, out_size: usize, f
 	Ok(())
 }
 
-fn write_chunks(chunks: &Vec<(u16, f32)>, out_size: usize, chunk_size: usize, fs: f32, dest: &str) -> Result<(), Box<dyn Error>> {
+fn write_chunks(chunks: &Vec<Chunk>, out_size: usize, chunk_size: usize, fs: f32, dest: &str) -> Result<(), Box<dyn Error>> {
 	let mut out_file = fs::File::create(dest)?;
 
 	out_file.write("XPRS".as_bytes())?;
@@ -47,16 +47,19 @@ fn write_chunks(chunks: &Vec<(u16, f32)>, out_size: usize, chunk_size: usize, fs
 	out_file.write("DATA".as_bytes())?;
 
 	// Normalize
+	/*
 	let mut max = 0f32;
 	for i in (0..chunks.len()).step_by(chunk_size) {
-		if chunks[i].1 > max  {
+		if chunks[i].1.norm() > max  {
 			max = chunks[i].1;
 		}
 	}
+	*/
 
 	for chunk in chunks {
 		out_file.write(&(chunk.0 as u16).to_le_bytes())?;
-		out_file.write(&(chunk.1 as f32 / max).to_le_bytes())?;
+		out_file.write(&(chunk.1.re as f32).to_le_bytes())?;
+		out_file.write(&(chunk.1.im as f32).to_le_bytes())?;
 	}
 
 	Ok(())
@@ -90,8 +93,8 @@ pub fn encode(filename: &str, destination: &str) -> Result<(), Box<dyn Error>> {
     };
 
 	let mut out = Vec::new();
-	let chunk_size = 256 * 2;
-	let out_size = 128;
+	let chunk_size = 256 * 4;
+	let out_size = 64;
 	let num_chunks = channels[0].len() / chunk_size;
 
 	let part = num_chunks / 100;

@@ -1,4 +1,4 @@
-use super::{isample};
+use super::{isample, Chunk, Complex};
 
 use std::error::Error;
 use std::fs;
@@ -41,8 +41,8 @@ fn play(samples: &Vec<isample>, fs: u32) -> Result<(), Box<dyn Error>> {
 }
 
 
-fn generate_from_chunk(chunks: &[(u16, f32)], out: &mut Vec<isample>, chunk_size: usize) -> Result<(), Box<dyn Error>> {
-	let mut transform = std::iter::repeat(0f32).take(chunk_size).collect::<Vec<_>>();
+fn generate_from_chunk(chunks: &[Chunk], out: &mut Vec<isample>, chunk_size: usize) -> Result<(), Box<dyn Error>> {
+	let mut transform = std::iter::repeat(Complex::new(0.0, 0.0)).take(chunk_size).collect::<Vec<_>>();
 
 	for chunk in chunks {
 		transform[chunk.0 as usize] = chunk.1;
@@ -67,12 +67,13 @@ pub fn decode(filename: &str) -> Result<(), Box<dyn Error>> {
 	let fs = i32::from_le_bytes(raw[16..20].try_into()?);
 
 	let chunks = {
-		let mut chunks = Vec::<(u16, f32)>::with_capacity(chunk_size);
+		let mut chunks = Vec::<Chunk>::with_capacity(chunk_size);
 		for i in 0..chunk_count {
-			let start = 24 + i * 6;
+			let start = 24 + i * 10;
 			let freq = u16::from_le_bytes(raw[start..start+2].try_into()?);
-			let mag = f32::from_le_bytes(raw[start+2..start+6].try_into()?);
-			chunks.push((freq, mag));
+			let re = f32::from_le_bytes(raw[start+2..start+6].try_into()?);
+			let im = f32::from_le_bytes(raw[start+6..start+10].try_into()?);
+			chunks.push((freq, Complex::new(re, im)));
 		}
 		chunks
 	};

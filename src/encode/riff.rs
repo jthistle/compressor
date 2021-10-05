@@ -1,6 +1,5 @@
-use std::borrow::Borrow;
 use std::error::Error;
-use std::convert::{TryInto, From};
+use std::convert::{TryInto};
 
 #[derive(Debug)]
 pub struct RiffChunk {

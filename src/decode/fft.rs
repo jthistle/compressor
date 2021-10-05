@@ -1,18 +1,12 @@
-use super::{isample};
+use super::{isample, Complex};
 
 use std::error::Error;
 
-extern crate num_complex;
-use num_complex::Complex;
-
 extern crate fourier;
 
-pub fn compute_inverse_fft(input: &[f32], output: &mut [isample]) -> Result<(), Box<dyn Error>>{
+pub fn compute_inverse_fft(input: &[Complex<f32>], output: &mut [isample]) -> Result<(), Box<dyn Error>>{
     let N: usize = input.len();
-    let mut working_with = Vec::<Complex<f32>>::with_capacity(N);
-    for x in input {
-        working_with.push(Complex::new(*x as f32, 0.0));
-    }
+    let mut working_with = input.to_owned();
 
     let omega = 2f32 * std::f32::consts::PI / N as f32;
     let log = (N as f32).log2() as i32;
@@ -37,7 +31,7 @@ pub fn compute_inverse_fft(input: &[f32], output: &mut [isample]) -> Result<(), 
 
     let shift = std::mem::size_of::<usize>() * 8 - log as usize;
     for i in 0..N {
-        output[i.reverse_bits() >> shift] = (10000.0 * working_with[i].norm() as f32) as isample;
+        output[i.reverse_bits() >> shift] = (working_with[i].re as f32 / N as f32) as isample;
     }
 
     Ok(())
