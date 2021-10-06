@@ -1,7 +1,7 @@
 use std::error::Error;
 
 mod encode;
-use encode::{fft, EncodeOptions};
+use encode::{EncodeOptions};
 
 mod decode;
 

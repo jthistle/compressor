@@ -1,6 +1,5 @@
 use super::{isample, frequency_to_discrete, Complex, Chunk};
 
-use core::num;
 use std::convert::TryInto;
 use std::fs;
 use std::error::Error;
@@ -24,7 +23,7 @@ fn encode_chunk(chunk: &[isample], out: &mut Vec<Chunk>, out_size: usize, fs: f3
 	let in_size = chunk.len();
 
 	let mut fft_output = std::iter::repeat(Complex::new(0.0, 0.0)).take(in_size).collect::<Vec<_>>();
-	fft::compute_fft(&chunk[..], &mut fft_output[..])?;
+	fft::compute_fft(&chunk, &mut fft_output[..])?;
 
 	let mut out_tmp = std::iter::repeat((0u16, Complex::new(0.0, 0.0))).take(out_size).collect::<Vec<_>>();
 	// let skip = (frequency_to_discrete(20.0, fs, in_size) - 1).max(0) as usize;
@@ -47,25 +46,25 @@ fn encode_chunk(chunk: &[isample], out: &mut Vec<Chunk>, out_size: usize, fs: f3
 }
 
 
-fn write_chunks(chunks: &Vec<Vec<Chunk>>, out_size: usize, chunk_size: usize, fs: f32, dest: &str) -> Result<(), Box<dyn Error>> {
+fn write_chunks(chunks: &[Vec<Chunk>], out_size: usize, chunk_size: usize, fs: f32, dest: &str) -> Result<(), Box<dyn Error>> {
 	let mut out_file = fs::File::create(dest)?;
 	let num_channels = chunks.len();
 
-	out_file.write("XPRS".as_bytes())?;
-	out_file.write(&(chunk_size as i32).to_le_bytes())?;
-	out_file.write(&(chunks[0].len() as i32).to_le_bytes())?;
-	out_file.write(&(out_size as i32).to_le_bytes())?;
-	out_file.write(&(fs as i32).to_le_bytes())?;
-	out_file.write(&(chunks.len() as i32).to_le_bytes())?;
-	out_file.write("DATA".as_bytes())?;
+	out_file.write_all("XPRS".as_bytes())?;
+	out_file.write_all(&(chunk_size as i32).to_le_bytes())?;
+	out_file.write_all(&(chunks[0].len() as i32).to_le_bytes())?;
+	out_file.write_all(&(out_size as i32).to_le_bytes())?;
+	out_file.write_all(&(fs as i32).to_le_bytes())?;
+	out_file.write_all(&(chunks.len() as i32).to_le_bytes())?;
+	out_file.write_all("DATA".as_bytes())?;
 
 	// Write interleaved
 	for i in 0..chunks[0].len() {
 		for j in 0..num_channels {
 			let chunk = chunks[j][i];
-			out_file.write(&(chunk.0 as u16).to_le_bytes())?;
-			out_file.write(&(chunk.1.re as f32).to_le_bytes())?;
-			out_file.write(&(chunk.1.im as f32).to_le_bytes())?;
+			out_file.write_all(&(chunk.0 as u16).to_le_bytes())?;
+			out_file.write_all(&(chunk.1.re as f32).to_le_bytes())?;
+			out_file.write_all(&(chunk.1.im as f32).to_le_bytes())?;
 		}
 	}
 
@@ -116,7 +115,7 @@ pub fn encode(filename: &str, destination: &str, opts: EncodeOptions) -> Result<
 		}
 	}
 
-	write_chunks(&out, out_size, chunk_size, fs, destination)?;
+	write_chunks(&out[..], out_size, chunk_size, fs, destination)?;
 
     Ok(())
 }

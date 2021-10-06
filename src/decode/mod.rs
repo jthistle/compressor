@@ -7,12 +7,11 @@ use std::convert::TryInto;
 extern crate alsa;
 use alsa::pcm::{Frames};
 use alsa::{ValueOr, Direction};
-use alsa::nix;
 
 mod fft;
 
 
-fn play(samples: &Vec<isample>, channels: usize, fs: u32) -> Result<(), Box<dyn Error>> {
+fn play(samples: &[isample], channels: usize, fs: u32) -> Result<(), Box<dyn Error>> {
     let pcm = alsa::pcm::PCM::new("default", Direction::Playback, false)?;
 	let period_size = 512usize;
 
@@ -54,14 +53,14 @@ fn generate_from_chunk(chunks: &[Chunk], out: &mut Vec<isample>, chunk_size: usi
 		transform[chunk.0 as usize] = chunk.1;
 	}
 
-	out.append(&mut std::iter::repeat(0 as isample).take(chunk_size as usize).collect::<Vec<_>>());
+	out.append(&mut std::iter::repeat(0).take(chunk_size as usize).collect::<Vec<_>>());
 	let start_ind = out.len() - chunk_size;
 	fft::compute_inverse_fft(&transform, &mut out[start_ind..])?;
 
 	Ok(())
 }
 
-fn interleave(wave: &Vec<Vec<isample>>) -> Vec<isample> {
+fn interleave(wave: &[Vec<isample>]) -> Vec<isample> {
 	let num_chans = wave.len();
 	let chan_size = wave[0].len();
 	let mut out = Vec::with_capacity(num_chans * chan_size);
@@ -111,8 +110,8 @@ pub fn decode(filename: &str) -> Result<(), Box<dyn Error>> {
 	}
 
 	println!("play");
-	let samples = interleave(&wave);
-	play(&samples, num_channels, fs as u32)?;
+	let samples = interleave(&wave[..]);
+	play(&samples[..], num_channels, fs as u32)?;
 	// play(&wave[0], 1, fs as u32)?;
 
 	Ok(())
