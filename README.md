@@ -27,6 +27,21 @@ Decode and play a compressed file:
 cargo run --release decode audio/mycompressedfile.xprs
 ```
 
+Full usage:
+
+```
+Usage: compressor ACTION SRC [DEST] [opts...]
+
+Encoding:
+	compressor encode SRC DEST [--ratio RATIO] [--storage-bits BITS]
+
+RATIO is the compression ratio. Default 8, must be >= 1.
+BITS is the number of bits to use in storing float values. Accepted values are 16 (default), 32.
+
+Decoding:
+	compressor decode SRC
+```
+
 ## Details
 
 ### Encoding
