@@ -2,7 +2,10 @@ use super::{isample, Chunk, Complex};
 
 use std::error::Error;
 use std::fs;
-use std::convert::TryInto;
+use std::convert::{TryInto};
+
+extern crate half;
+use half::bf16;
 
 extern crate alsa;
 use alsa::pcm::{Frames};
@@ -45,7 +48,6 @@ fn play(samples: &[isample], channels: usize, fs: u32) -> Result<(), Box<dyn Err
     Ok(())
 }
 
-
 fn generate_from_chunk(chunks: &[Chunk], out: &mut Vec<isample>, chunk_size: usize) -> Result<(), Box<dyn Error>> {
 	let mut transform = std::iter::repeat(Complex::new(0.0, 0.0)).take(chunk_size).collect::<Vec<_>>();
 
@@ -74,6 +76,20 @@ fn interleave(wave: &[Vec<isample>]) -> Vec<isample> {
 	out
 }
 
+#[inline(always)]
+fn read_number_f32(raw: &[u8]) -> Result<Complex<f32>, Box<dyn Error>> {
+	let re = f32::from_le_bytes(raw[0..4].try_into()?);
+	let im = f32::from_le_bytes(raw[4..8].try_into()?);
+	Ok(Complex::new(re, im))
+}
+
+#[inline(always)]
+fn read_number_f16(raw: &[u8]) -> Result<Complex<f32>, Box<dyn Error>> {
+	let re = bf16::from_le_bytes(raw[0..2].try_into()?);
+	let im = bf16::from_le_bytes(raw[2..4].try_into()?);
+	Ok(Complex::new(re.to_f32(), im.to_f32()))
+}
+
 pub fn decode(filename: &str) -> Result<(), Box<dyn Error>> {
     let raw = fs::read(filename)?;
 
@@ -82,17 +98,28 @@ pub fn decode(filename: &str) -> Result<(), Box<dyn Error>> {
 	let out_size = i32::from_le_bytes(raw[12..16].try_into()?) as usize;
 	let fs = i32::from_le_bytes(raw[16..20].try_into()?);
 	let num_channels = i32::from_le_bytes(raw[20..24].try_into()?) as usize;
+	let storage_type = u16::from_le_bytes(raw[24..26].try_into()?) as u8;
+
+	let chunk_bytes = match storage_type {
+		1 => { 6 },
+		2 => { 10 },
+		_ => { return Err("Invalid storage type".try_into()?) }
+	};
+
+	let read_number = match storage_type {
+		1 => { read_number_f16 },
+		2 => { read_number_f32 },
+		_ => { return Err("Invalid storage type".try_into()?) }
+	};
 
 	let chunks = {
 		let mut chunks = Vec::new();
 		for j in 0..num_channels {
 			let mut channel = Vec::<Chunk>::with_capacity(chunk_size);
 			for i in 0..chunk_count {
-				let start = 28 + (i * num_channels + j) * 10;
+				let start = 30 + (i * num_channels + j) * chunk_bytes;
 				let freq = u16::from_le_bytes(raw[start..start+2].try_into()?);
-				let re = f32::from_le_bytes(raw[start+2..start+6].try_into()?);
-				let im = f32::from_le_bytes(raw[start+6..start+10].try_into()?);
-				channel.push((freq, Complex::new(re, im)));
+				channel.push((freq, read_number(&raw[start+2..start+chunk_bytes])?));
 			}
 			chunks.push(channel);
 		}

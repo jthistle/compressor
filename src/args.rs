@@ -2,6 +2,7 @@ use std::error::Error;
 
 macro_rules! throw {
 	() => {
+		print_help();
 		return Err("Bad usage".into());
 	};
 }
@@ -11,9 +12,10 @@ fn print_help() {
 Usage: compressor ACTION SRC [DEST] [opts...]
 
 Encoding:
-	compressor encode SRC DEST [--ratio RATIO]
+	compressor encode SRC DEST [--ratio RATIO] [--storage-bits BITS]
 
 RATIO is the compression ratio. Default 8, must be >= 1.
+BITS is the number of bits to use in storing float values. Accepted values are 16 (default), 32.
 
 Decoding:
 	compressor decode SRC
@@ -30,6 +32,7 @@ pub struct Options {
 	pub src: String,
 	pub dest: Option<String>,
 	pub ratio: u32,
+	pub storage: u8
 }
 
 pub fn parse_args() -> Result<Options, Box<dyn Error>> {
@@ -39,15 +42,14 @@ pub fn parse_args() -> Result<Options, Box<dyn Error>> {
 		src: String::new(),
 		dest: None,
 		ratio: 8,
+		storage: 1,
 	};
 
 	let mut offset = 0;
 	if args.len() == 1 {
-		print_help();
 		throw!();
 	} else if args[1] == "encode" {
 		if args.len() < 4 {
-			print_help();
 			throw!();
 		}
 
@@ -57,7 +59,6 @@ pub fn parse_args() -> Result<Options, Box<dyn Error>> {
 		offset = 4;
 	} else if args[1] == "decode" {
 		if args.len() < 3 {
-			print_help();
 			throw!();
 		}
 
@@ -66,7 +67,6 @@ pub fn parse_args() -> Result<Options, Box<dyn Error>> {
 		opts.dest = None;
 		offset = 3;
 	} else {
-		print_help();
 		throw!();
 	}
 
@@ -74,19 +74,31 @@ pub fn parse_args() -> Result<Options, Box<dyn Error>> {
 		if args[offset] == "--ratio" {
 			offset += 1;
 			if offset >= args.len() {
-				print_help();
 				throw!();
 			}
 
 			let ratio = i32::from_str_radix(args[offset].as_str(), 10)?;
 			if ratio < 1 {
-				print_help();
 				throw!();
 			}
 
 			opts.ratio = ratio as u32;
+		} else if args[offset] == "--storage-bits" {
+			offset += 1;
+			if offset >= args.len() {
+				throw!();
+			}
+
+			let storage_bits = match args[offset].as_str() {
+				"16" => { 1 },
+				"32" => { 2 },
+				_ => {
+					throw!();
+				}
+			};
+
+			opts.storage = storage_bits;
 		} else {
-			print_help();
 			throw!();
 		}
 

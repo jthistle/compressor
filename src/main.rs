@@ -33,6 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 			let encode_opts = EncodeOptions {
 				chunk_size,
 				out_size: (chunk_size as f32 / opts.ratio as f32) as usize,
+				storage_type: opts.storage,
 			};
 			encode::encode(
 				opts.src.as_str(),

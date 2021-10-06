@@ -5,15 +5,18 @@ use std::fs;
 use std::error::Error;
 use std::io::{Write};
 
-pub mod fft;
+extern crate half;
+use half::{bf16};
+
+mod fft;
 
 mod riff;
 use riff::RiffChunk;
 
-
 pub struct EncodeOptions {
 	pub chunk_size: usize,
 	pub out_size: usize,
+	pub storage_type: u8,
 }
 
 
@@ -45,8 +48,21 @@ fn encode_chunk(chunk: &[isample], out: &mut Vec<Chunk>, out_size: usize, fs: f3
 	Ok(())
 }
 
+#[inline(always)]
+fn write_chunk_f32(out_file: &mut fs::File, chunk: &Chunk) -> Result<(), Box<dyn Error>> {
+	out_file.write_all(&(chunk.1.re).to_le_bytes())?;
+	out_file.write_all(&(chunk.1.im).to_le_bytes())?;
+	Ok(())
+}
 
-fn write_chunks(chunks: &[Vec<Chunk>], out_size: usize, chunk_size: usize, fs: f32, dest: &str) -> Result<(), Box<dyn Error>> {
+#[inline(always)]
+fn write_chunk_f16(out_file: &mut fs::File, chunk: &Chunk) -> Result<(), Box<dyn Error>> {
+	out_file.write_all(&(bf16::from_f32(chunk.1.re)).to_le_bytes())?;
+	out_file.write_all(&(bf16::from_f32(chunk.1.im)).to_le_bytes())?;
+	Ok(())
+}
+
+fn write_chunks(chunks: &[Vec<Chunk>], out_size: usize, chunk_size: usize, fs: f32, storage_type: u8, dest: &str) -> Result<(), Box<dyn Error>> {
 	let mut out_file = fs::File::create(dest)?;
 	let num_channels = chunks.len();
 
@@ -56,15 +72,21 @@ fn write_chunks(chunks: &[Vec<Chunk>], out_size: usize, chunk_size: usize, fs: f
 	out_file.write_all(&(out_size as i32).to_le_bytes())?;
 	out_file.write_all(&(fs as i32).to_le_bytes())?;
 	out_file.write_all(&(chunks.len() as i32).to_le_bytes())?;
+	out_file.write_all(&(storage_type as u16).to_le_bytes())?;
 	out_file.write_all("DATA".as_bytes())?;
+
+	let write_chunk_data = match storage_type {
+		1 => { write_chunk_f16 },
+		2 => { write_chunk_f32 },
+		_ => { return Err("Invalid storage type".try_into()?) }
+	};
 
 	// Write interleaved
 	for i in 0..chunks[0].len() {
 		for j in 0..num_channels {
 			let chunk = chunks[j][i];
 			out_file.write_all(&(chunk.0 as u16).to_le_bytes())?;
-			out_file.write_all(&(chunk.1.re as f32).to_le_bytes())?;
-			out_file.write_all(&(chunk.1.im as f32).to_le_bytes())?;
+			write_chunk_data(&mut out_file, &chunk)?;
 		}
 	}
 
@@ -115,7 +137,7 @@ pub fn encode(filename: &str, destination: &str, opts: EncodeOptions) -> Result<
 		}
 	}
 
-	write_chunks(&out[..], out_size, chunk_size, fs, destination)?;
+	write_chunks(&out[..], out_size, chunk_size, fs, opts.storage_type, destination)?;
 
     Ok(())
 }
