@@ -23,7 +23,7 @@ pub fn compute_fft(input: &[isample], output: &mut [Complex<f32>]) -> Result<(),
                 let src_y = working_with[ind_y];
 
                 working_with[ind_x] = src_x + src_y;
-                working_with[ind_y] = (src_x - src_y) * Complex::from_polar(&1.0, &(omega * (k * 2usize.pow(i as u32)) as f32));
+                working_with[ind_y] = (src_x - src_y) * Complex::from_polar(1.0, omega * (k * 2usize.pow(i as u32)) as f32);
             }
         }
 		num_blocks *= 2;
