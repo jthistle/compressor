@@ -52,8 +52,9 @@ All numbers are 32-bit LE signed integers unless stated otherwise.
 - 4 bytes: the size of each encoded chunk
 - 4 bytes: the (integer) sample frequency
 - 4 bytes: the number of channels
+- 2 bytes: the storage type. 1 = f16, 2 = f32.
 - 4 bytes: "DATA" - the data header
 - variable size: the compressed data chunks (interleaved), with each chunk in the format:
   - 2 bytes: the chunk discrete frequency (16-bit unsigned LE integer)
-  - 4 bytes: the DFT real part (32-bit IEEE float, LE)
-  - 4 bytes: the DFT imaginary part (32-bit IEEE float, LE)
+  - 2/4 bytes: the DFT real part (16/32-bit IEEE float, LE)
+  - 2/4 bytes: the DFT imaginary part (16/32-bit IEEE float, LE)

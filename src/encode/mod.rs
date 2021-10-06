@@ -137,6 +137,7 @@ pub fn encode(filename: &str, destination: &str, opts: EncodeOptions) -> Result<
 		}
 	}
 
+	println!("writing...");
 	write_chunks(&out[..], out_size, chunk_size, fs, opts.storage_type, destination)?;
 
     Ok(())
