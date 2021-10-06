@@ -29,9 +29,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 	match opts.action {
 		Action::Encode => {
+			let chunk_size = 1024usize;
 			let encode_opts = EncodeOptions {
-				chunk_size: 1024,
-				out_size: 128,
+				chunk_size,
+				out_size: (chunk_size as f32 / opts.ratio as f32) as usize,
 			};
 			encode::encode(
 				opts.src.as_str(),
