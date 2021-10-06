@@ -7,24 +7,25 @@ use std::convert::TryInto;
 extern crate alsa;
 use alsa::pcm::{Frames};
 use alsa::{ValueOr, Direction};
+use alsa::nix;
 
 mod fft;
 
 
-fn play(samples: &Vec<isample>, fs: u32) -> Result<(), Box<dyn Error>> {
+fn play(samples: &Vec<isample>, channels: usize, fs: u32) -> Result<(), Box<dyn Error>> {
     let pcm = alsa::pcm::PCM::new("default", Direction::Playback, false)?;
-	let period_size = 512;
+	let period_size = 512usize;
 
     // Setup pcm params
     {
         let params = alsa::pcm::HwParams::any(&pcm)?;
 
-        params.set_channels(1).unwrap();
+        params.set_channels(channels as u32).unwrap();
         params.set_rate(fs, ValueOr::Nearest)?;
         params.set_format(alsa::pcm::Format::s16())?;
         params.set_access(alsa::pcm::Access::RWInterleaved)?;
         params.set_period_size(period_size as Frames, ValueOr::Nearest)?;
-        params.set_buffer_size(8 * 512)?;
+        params.set_buffer_size(8 * period_size as Frames)?;
 
         pcm.hw_params(&params)?;
     }
@@ -32,7 +33,12 @@ fn play(samples: &Vec<isample>, fs: u32) -> Result<(), Box<dyn Error>> {
 	let io = pcm.io_i16()?;
 
 	for i in 0..samples.len() / period_size {
-		io.writei(&samples[i * period_size..(i + 1) * period_size])?;
+		match io.writei(&samples[i * period_size..(i + 1) * period_size]) {
+			Ok(_) => {},
+			Err(e) => {
+				pcm.try_recover(e, false)?;
+			}
+		}
 	}
 
 	pcm.drain()?;
@@ -55,6 +61,19 @@ fn generate_from_chunk(chunks: &[Chunk], out: &mut Vec<isample>, chunk_size: usi
 	Ok(())
 }
 
+fn interleave(wave: &Vec<Vec<isample>>) -> Vec<isample> {
+	let num_chans = wave.len();
+	let chan_size = wave[0].len();
+	let mut out = Vec::with_capacity(num_chans * chan_size);
+
+	for i in 0..chan_size {
+		for j in 0..num_chans {
+			out.push(wave[j][i]);
+		}
+	}
+
+	out
+}
 
 pub fn decode(filename: &str) -> Result<(), Box<dyn Error>> {
     let raw = fs::read(filename)?;
@@ -63,27 +82,38 @@ pub fn decode(filename: &str) -> Result<(), Box<dyn Error>> {
 	let chunk_count = i32::from_le_bytes(raw[8..12].try_into()?) as usize;
 	let out_size = i32::from_le_bytes(raw[12..16].try_into()?) as usize;
 	let fs = i32::from_le_bytes(raw[16..20].try_into()?);
+	let num_channels = i32::from_le_bytes(raw[20..24].try_into()?) as usize;
 
 	let chunks = {
-		let mut chunks = Vec::<Chunk>::with_capacity(chunk_size);
-		for i in 0..chunk_count {
-			let start = 24 + i * 10;
-			let freq = u16::from_le_bytes(raw[start..start+2].try_into()?);
-			let re = f32::from_le_bytes(raw[start+2..start+6].try_into()?);
-			let im = f32::from_le_bytes(raw[start+6..start+10].try_into()?);
-			chunks.push((freq, Complex::new(re, im)));
+		let mut chunks = Vec::new();
+		for j in 0..num_channels {
+			let mut channel = Vec::<Chunk>::with_capacity(chunk_size);
+			for i in 0..chunk_count {
+				let start = 28 + (i * num_channels + j) * 10;
+				let freq = u16::from_le_bytes(raw[start..start+2].try_into()?);
+				let re = f32::from_le_bytes(raw[start+2..start+6].try_into()?);
+				let im = f32::from_le_bytes(raw[start+6..start+10].try_into()?);
+				channel.push((freq, Complex::new(re, im)));
+			}
+			chunks.push(channel);
 		}
 		chunks
 	};
 
-	let mut wave = Vec::<isample>::new();
+	let mut wave = Vec::new();
 	println!("decode");
-	for i in (0..chunk_count).step_by(out_size) {
-		generate_from_chunk(&chunks[i..i + out_size], &mut wave, chunk_size)?;
+	for j in 0..num_channels {
+		let mut chan = Vec::new();
+		for i in (0..chunk_count).step_by(out_size) {
+			generate_from_chunk(&chunks[j][i..i + out_size], &mut chan, chunk_size)?;
+		}
+		wave.push(chan);
 	}
 
 	println!("play");
-	play(&wave, fs as u32)?;
+	let samples = interleave(&wave);
+	play(&samples, num_channels, fs as u32)?;
+	// play(&wave[0], 1, fs as u32)?;
 
 	Ok(())
 }

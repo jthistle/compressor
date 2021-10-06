@@ -29,7 +29,7 @@ pub fn compute_inverse_fft(input: &[Complex<f32>], output: &mut [isample]) -> Re
 
     let shift = std::mem::size_of::<usize>() * 8 - log as usize;
     for i in 0..N {
-        output[i.reverse_bits() >> shift] = (working_with[i].re as f32 / N as f32) as isample;
+        output[i.reverse_bits() >> shift] = (working_with[i].re as f32 / (N as f32)) as isample;
     }
 
     Ok(())
