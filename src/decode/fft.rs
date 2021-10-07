@@ -10,7 +10,7 @@ pub fn compute_inverse_fft(input: &[Complex<f32>], output: &mut [isample]) -> Re
     let log = (N as f32).log2() as i32;
 	let mut block_size = N;
 	let mut num_blocks = 1;
-    for i in 0..log as usize {   // Stage
+    for _ in 0..log as usize {   // Stage
 		let half_block = block_size / 2;
         for j in 0..num_blocks { // Block
             for k in 0..half_block {   // Operation
@@ -20,7 +20,7 @@ pub fn compute_inverse_fft(input: &[Complex<f32>], output: &mut [isample]) -> Re
                 let src_y = working_with[ind_y];
 
                 working_with[ind_x] = src_x + src_y;
-                working_with[ind_y] = (src_x - src_y) * Complex::from_polar(1.0, omega * (k * 2usize.pow(i as u32)) as f32);
+                working_with[ind_y] = (src_x - src_y) * Complex::from_polar(1.0, omega * (k * num_blocks) as f32);
             }
         }
 		num_blocks *= 2;
